@@ -1,4 +1,4 @@
-package src
+package main
 
 import (
 	"github.com/varunreddy624/DistributedKeyValueStore/src/master"
