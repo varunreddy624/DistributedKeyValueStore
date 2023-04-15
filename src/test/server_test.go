@@ -9,10 +9,11 @@ import (
 	"time"
 	"os"
 	"bufio"
+	"testing"
 )
 
 var s *raft.Server
-func main() {
+func TestServer(t *testing.T) {
 	// A no-op ApplyFunc
 	applyValue := func(value string) func(uint64, []byte) []byte {
 		return func(index uint64, cmd []byte) []byte {

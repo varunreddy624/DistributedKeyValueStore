@@ -46,7 +46,7 @@ func RaftServer(raftId uint64, port int) *raft.Server{
 			return []byte("noOp")
 		}
 	}
-	fmt.Printf("raftId is %d on port %d",raftId, port+magicNo)
+	fmt.Printf("raftId is %d on port %d\n",raftId, port+magicNo)
 	s := raft.NewServer(raftId, &bytes.Buffer{}, applyValue("key"))
 	r := http.NewServeMux()
 	raft.HTTPTransport(r, s)
