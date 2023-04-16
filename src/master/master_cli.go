@@ -30,15 +30,15 @@ func setConfig(configs [][]string) {
 }
 
 func putValue(key string, value string) {
-		if err :=masterCliOperation.Client[hashingFunc(key)].Call("WorkerSrvOperation.PutValueArg",&common.PutValueArg{key,value,hashingFunc(key)},
-			nil);err !=nil {
-			log.Printf("error in putValue Op on worker-instances %s",masterCliOperation.Client[hashingFunc(key)])
-		}
+	if err :=masterCliOperation.Client[hashingFunc(key)].Call("WorkerSrvOperation.PutValue",&common.PutValueArg{key,value,hashingFunc(key)},
+		nil);err !=nil {
+		log.Printf("error in putValue Op on worker-instances %s",masterCliOperation.Client[hashingFunc(key)])
+	}
 }
 
 func getValue(key string) []byte{
 	var reply []byte
-	if err :=masterCliOperation.Client[hashingFunc(key)].Call("WorkerSrvOperation.GetValueArg",&common.GetValueArg{key,hashingFunc(key)},
+	if err :=masterCliOperation.Client[hashingFunc(key)].Call("WorkerSrvOperation.GetValue",&common.GetValueArg{key,hashingFunc(key)},
 		&reply);err !=nil {
 		log.Printf("error in getValue Op on worker-instances %s",masterCliOperation.Client[hashingFunc(key)])
 		return nil

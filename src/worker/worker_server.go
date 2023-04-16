@@ -33,11 +33,12 @@ func (m *WorkerSrvOperation) GetValue(arg *common.GetValueArg, reply *[]byte) er
 	return nil
 }
 
-func (m *WorkerSrvOperation) PutValue(arg *common.PutValueArg, reply *string) error {
+func (m *WorkerSrvOperation) PutValue(arg *common.PutValueArg, reply *[]byte) error {
 	response := make(chan []byte)
-	if err := raftRegistry[arg.Idx].Command([]byte(fmt.Sprintf("PUT:%s %s",arg.Key,arg.Value)), response); err != nil {
+	err := raftRegistry[arg.Idx].Command([]byte(fmt.Sprintf("PUT:%s %s",arg.Key,arg.Value)), response)
+	if err != nil {
 		panic(err) // command not accepted
 	}
-	<-response // read value
+	*reply = <-response // read value
 	return nil
 }

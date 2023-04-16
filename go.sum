@@ -1,4 +1,6 @@
 github.com/gorilla/mux v1.8.0 h1:i40aqfkR1h2SlN9hojwV5ZA91wcXFOvkdNIeFDP5koI=
 github.com/gorilla/mux v1.8.0/go.mod h1:DVbg23sWSpFRCP0SfiEN6jmj59UnW/n46BH5rLB71So=
+github.com/orcaman/concurrent-map/v2 v2.0.1 h1:jOJ5Pg2w1oeB6PeDurIYf6k9PQ+aTITr/6lP/L/zp6c=
+github.com/orcaman/concurrent-map/v2 v2.0.1/go.mod h1:9Eq3TG2oBe5FirmYWQfYO5iH1q0Jv47PLaNK++uCdOM=
 github.com/peterbourgon/raft v0.0.0-20140401145928-3e45f3d15011 h1:dKtgemzJZk2bHvzr2xT2i6wsAF46YjY0qpVlk6zCHQ4=
 github.com/peterbourgon/raft v0.0.0-20140401145928-3e45f3d15011/go.mod h1:4VvYQFql33WS/Bg9TWiFkhLWYTYyUjQZCbLKsOE4pFI=
