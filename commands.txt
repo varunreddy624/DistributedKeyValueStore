@@ -1,0 +1,9 @@
+curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"as0", "Value":"as0"}'
+curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"as5", "Value":"as5"}'
+curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"fs5", "Value":"fs5"}'
+curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"ks5", "Value":"ks5"}'
+
+
+curl -L http://127.0.0.1:4444/join/%3A9019
+
+curl -L http://127.0.0.1:9000/fs5

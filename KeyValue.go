@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"bytes"
 
 	"github.com/gorilla/mux"
 	"github.com/shaj13/raft"
@@ -24,7 +25,7 @@ import (
 
 var api *string
 
-func main(){
+func main() {
 
 	addr := flag.String("raft", "", "raft server address")
 	join := flag.String("join", "", "join cluster address")
@@ -38,8 +39,8 @@ func main(){
 	router.HandleFunc("/mgmt/nodes", http.HandlerFunc(nodes)).Methods("GET")
 	router.HandleFunc("/mgmt/nodes/{id}", http.HandlerFunc(removeNode)).Methods("DELETE")
 
-	router.HandleFunc("/migrate",http.HandlerFunc(migrate)).Methods("PUT", "POST")
-	router.HandleFunc("/receive",http.HandlerFunc(receive)).Methods("PUT", "POST")
+	router.HandleFunc("/migrate", http.HandlerFunc(migrate)).Methods("PUT", "POST")
+	router.HandleFunc("/receive", http.HandlerFunc(receive)).Methods("PUT", "POST")
 
 	var (
 		opts      []raft.Option
@@ -236,15 +237,15 @@ type configuration struct {
 	Config []string `json:"config"`
 }
 
-type ReceiveMap struct{
+type ReceiveMap struct {
 	Map []entry `json:"map"`
 }
 
-func GetClusterAddressFromHash(angles []string,hash int) string{
-	for i := 0; i<360; i++{
-		currentAngle := (hash-i+360)%360
-		if angles[currentAngle] != ""{
-			clusterAddress := "http://127.0.0.1"+angles[currentAngle]+"/"
+func GetClusterAddressFromHash(angles []string, hash int) string {
+	for i := 0; i < 360; i++ {
+		currentAngle := (hash - i + 360) % 360
+		if angles[currentAngle] != "" {
+			clusterAddress := "http://127.0.0.1" + angles[currentAngle] + "/"
 			fmt.Println(hash, currentAngle)
 			return clusterAddress
 		}
@@ -255,27 +256,22 @@ func GetClusterAddressFromHash(angles []string,hash int) string{
 func hashingFunc(key string) int {
 	asciiStr := []rune(key)
 	var summnation int
-	for _,ascii:= range asciiStr{
+	for _, ascii := range asciiStr {
 		summnation = summnation + int(ascii)
 	}
-	return summnation%360
+	return summnation % 360
 }
 
-func GetFullAddr(port string) string{
-	return "http://127.0.0.1"+port+"/"
+func GetFullAddr(port string) string {
+	return "http://127.0.0.1" + port + "/"
 }
 
-func migrate(w http.ResponseWriter, r *http.Request){
+func migrate(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	// if err := json.Unmarshal(buf, new(configuration)); err != nil {
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	// 	return
-	// }
 
 	conf := configuration{}
 	err = json.Unmarshal(buf, &conf)
@@ -284,32 +280,75 @@ func migrate(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	fsm.mu.Lock()
-	defer fsm.mu.Unlock()
 	apiFullAddr := GetFullAddr(*api)
 
 	fmt.Println(*api, conf)
 
-	var	targetClusterAddr string
-	var targetMap = make(map[string]string)
+	var targetClusterAddr string
+	var targetMap ReceiveMap
+	var m = []entry{}
 
-	for k,v := range fsm.kv{
-		fmt.Println(k,v)
+	for k, v := range fsm.kv {
+		fmt.Println(k, v)
 		clusterAdd := GetClusterAddressFromHash(conf.Config, hashingFunc(k))
-		if clusterAdd != apiFullAddr{
+		if clusterAdd != apiFullAddr {
 			targetClusterAddr = clusterAdd
-			targetMap[k] = v
+			e := entry{
+				Key:    k,
+				Value: v,
+			}
+			m = append(m, e)
+			// targetMap[k] = v
+		}
+	}
+	targetMap.Map = m
+
+	sendToTarget(targetClusterAddr, targetMap)
+
+	// remove the key values pairs from current node and
+
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+	defer cancel()
+
+	for _, elem := range m {
+		elem.Value = ""
+		
+		elemInByteArr, err := json.Marshal(elem)
+		if err != nil {
+			panic(err)
+		}
+
+		if err := node.Replicate(ctx, elemInByteArr); err != nil {
+			fmt.Println(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
 
-	fmt.Println(targetClusterAddr, targetMap)
-
-
 	w.WriteHeader(http.StatusNoContent)
-	// remove the key values pairs from current node and 
 }
 
-func receive(w http.ResponseWriter, r *http.Request){
+func sendToTarget(url string, targetMap ReceiveMap) {
+
+	fmt.Println(targetMap)
+
+	targetMapByteArr, err := json.Marshal(targetMap)
+	if err != nil {
+		panic(err)
+	}
+
+	req, err := http.NewRequest("POST", url+"receive", bytes.NewBuffer(targetMapByteArr))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+	    panic(err)
+	}
+	defer resp.Body.Close()
+}
+
+func receive(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -328,9 +367,9 @@ func receive(w http.ResponseWriter, r *http.Request){
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
 	defer cancel()
 
-	for _,elem := range newMap.Map{
+	for _, elem := range newMap.Map {
 		elemInByteArr, err := json.Marshal(elem)
-		if err != nil{
+		if err != nil {
 			panic(err)
 		}
 		if err := node.Replicate(ctx, elemInByteArr); err != nil {
@@ -338,6 +377,5 @@ func receive(w http.ResponseWriter, r *http.Request){
 			return
 		}
 	}
-
 	w.WriteHeader(http.StatusNoContent)
 }
