@@ -58,22 +58,30 @@ func GetFromCluster(url string, key string) string {
     }
 }
 
-var serverAddresses []string
+var angles [360]string
+
 
 func GetClusterAddressFromHash(hash int) string{
-	clusterAddress := "http://127.0.0.1"+serverAddresses[hash]+"/"
-	return clusterAddress
+	for i := 0; i<360; i++{
+		currentAngle := (hash-i+360)%360
+		if angles[currentAngle] != ""{
+			clusterAddress := "http://127.0.0.1"+angles[currentAngle]+"/"
+			fmt.Println(hash, currentAngle)
+			return clusterAddress
+		}
+	}
+	return "no hash found"
 }
 
 func main(){
 
-	// GetFromCluster("http://127.0.0.1:9090","varun")
-
 	port := os.Args[1]
 
-	serverAddresses = os.Args[2:]
-
-	fmt.Println(serverAddresses)
+	for _,i :=  range os.Args[2:]{
+		angle := hashingFunc(i)
+		angles[angle] = i
+		fmt.Println(i,angle)
+	}
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", http.HandlerFunc(save)).Methods("PUT", "POST")
@@ -117,9 +125,9 @@ func hashingFunc(key string) int {
 	asciiStr := []rune(key)
 	var summnation int
 	for _,ascii:= range asciiStr{
-		summnation = summnation + int(ascii - '0')
+		summnation = summnation + int(ascii)
 	}
-	return summnation%len(serverAddresses)
+	return summnation%360
 }
 
 // TODO: whole cluster failure - reassinging key value pairs
