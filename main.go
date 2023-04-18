@@ -110,8 +110,7 @@ func main(){
 	router.HandleFunc("/{key}", http.HandlerFunc(get)).Methods("GET")
 
 	router.HandleFunc("/join/{node}",http.HandlerFunc(join)).Methods("GET")
-
-	// router.HandleFunc("/leave/{node}",http.HandlerFunc(leave)).Methods("GET")
+	router.HandleFunc("/leave/{node}",http.HandlerFunc(leave)).Methods("GET")
 
 
 	if err := http.ListenAndServe(port, router); err != nil {
@@ -150,7 +149,8 @@ func get(w http.ResponseWriter, r *http.Request) {
 func join(w http.ResponseWriter, r *http.Request){
 	node := mux.Vars(r)["node"]
 	nodeAngle := hashingFunc(node)
-	nearestCluster := GetClusterAddressFromHash((nodeAngle))
+
+	nearestCluster := GetClusterAddressFromHash(nodeAngle)
 
 	angles[nodeAngle] = node
 	
@@ -158,6 +158,22 @@ func join(w http.ResponseWriter, r *http.Request){
 	SendConfig(nearestCluster)
 
 	// fmt.Println(node,nodeAngle)
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+
+func leave(w http.ResponseWriter, r *http.Request){
+	node := mux.Vars(r)["node"]
+	nodeAngle := hashingFunc(node)
+
+	nearestCluster := GetClusterAddressFromHash(nodeAngle)
+
+	angles[nodeAngle] = ""
+
+	SendConfig(nearestCluster)
+
+	fmt.Println(node,nodeAngle)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -172,5 +188,4 @@ func hashingFunc(key string) int {
 	return summnation%360
 }
 
-// TODO: whole cluster failure - reassinging key value pairs
 // TODO: cluster master node failure
