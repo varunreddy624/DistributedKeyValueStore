@@ -20,6 +20,28 @@ type entry struct {
 	Value string
 }
 
+func SendConfig(url string){
+	jsonBody := map[string]interface{}{
+		"config":angles,
+	}
+	jsonStr,_ := json.Marshal(jsonBody)
+
+	req, err := http.NewRequest("POST", url+"migrate", bytes.NewBuffer(jsonStr))
+
+	if err != nil{
+		panic(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        panic(err)
+    }
+    defer resp.Body.Close()
+}
+
 func PutToCluster(url string, key string, value string){
 	jsonBody := fmt.Sprintf(`{"Key":"%s", "Value":"%s"}`, key, value)
 
@@ -87,6 +109,11 @@ func main(){
 	router.HandleFunc("/", http.HandlerFunc(save)).Methods("PUT", "POST")
 	router.HandleFunc("/{key}", http.HandlerFunc(get)).Methods("GET")
 
+	router.HandleFunc("/join/{node}",http.HandlerFunc(join)).Methods("GET")
+
+	// router.HandleFunc("/leave/{node}",http.HandlerFunc(leave)).Methods("GET")
+
+
 	if err := http.ListenAndServe(port, router); err != nil {
 		log.Fatal(err)
 	}
@@ -118,6 +145,21 @@ func get(w http.ResponseWriter, r *http.Request) {
 	value := GetFromCluster(replicaGroup,key)
 
 	w.Write([]byte(value))
+}
+
+func join(w http.ResponseWriter, r *http.Request){
+	node := mux.Vars(r)["node"]
+	nodeAngle := hashingFunc(node)
+	nearestCluster := GetClusterAddressFromHash((nodeAngle))
+
+	angles[nodeAngle] = node
+	
+
+	SendConfig(nearestCluster)
+
+	// fmt.Println(node,nodeAngle)
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 
