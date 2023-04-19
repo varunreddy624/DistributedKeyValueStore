@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var api *string
+var api, sc *string
 
 func main() {
 
@@ -31,6 +31,8 @@ func main() {
 	join := flag.String("join", "", "join cluster address")
 	api = flag.String("api", "", "api server address")
 	state := flag.String("state_dir", "", "raft state directory (WAL, Snapshots)")
+	sc = flag.String("shrdctrlr address", "", "ip and port of shard controller")
+
 	flag.Parse()
 
 	router := mux.NewRouter()
@@ -204,9 +206,22 @@ func removeNode(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
 	defer cancel()
 
+	flag := false
+
+	if node.Leader() == id && node.Whoami() == id{
+		flag = true
+	}
+
 	if err := node.RemoveMember(ctx, id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if flag{
+		leaderId := node.Leader()
+		// leader is being removed, and you are the leader then we should update the shard controller
+		// regarding the new leader
+		shrdCtrlFullAddress := GetFullAddr(*sc) 
 	}
 }
 

@@ -112,6 +112,7 @@ func main(){
 	router.HandleFunc("/join/{node}",http.HandlerFunc(join)).Methods("GET")
 	router.HandleFunc("/leave/{node}",http.HandlerFunc(leave)).Methods("GET")
 
+	router.HandleFunc("/changeClusterRoot/{oldNode}/{newNode}",http.HandlerFunc(changeClusterRoot)).Methods("GET")
 
 	if err := http.ListenAndServe(port, router); err != nil {
 		log.Fatal(err)
@@ -162,7 +163,6 @@ func join(w http.ResponseWriter, r *http.Request){
 	w.WriteHeader(http.StatusNoContent)
 }
 
-
 func leave(w http.ResponseWriter, r *http.Request){
 	node := mux.Vars(r)["node"]
 	nodeAngle := hashingFunc(node)
@@ -178,6 +178,24 @@ func leave(w http.ResponseWriter, r *http.Request){
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func changeClusterRoot(w http.ResponseWriter, r *http.Request){
+	fmt.Println("here")
+	
+	oldNode := mux.Vars(r)["oldNode"]
+	newNode := mux.Vars(r)["newNode"]
+
+	fmt.Println(oldNode,newNode)
+
+	for index,elem := range angles{
+		if elem == oldNode{
+			angles[index] = newNode
+		}
+	}
+
+	fmt.Println(angles)
+
+	w.WriteHeader(http.StatusNoContent)
+}
 
 func hashingFunc(key string) int {
 	asciiStr := []rune(key)

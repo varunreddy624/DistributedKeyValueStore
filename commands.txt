@@ -7,3 +7,16 @@ curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"ks5", "Value":"ks5"}'
 curl -L http://127.0.0.1:4444/join/%3A9019
 
 curl -L http://127.0.0.1:9000/fs5
+
+
+For main, in command line arguments, take GID|address for each cluster 
+Convert GID to int while storing them in angles
+For KeyValue, in command line arguments, take the group id so that when change in leader happens, we can notify shard controller
+
+Replace the cluster's absolute address with group IDs while maintaining angles
+Angles maintain the angle to GID map
+We need to store GID to cluster address map
+During join and leave, send the above map as well during post requests - end to end testing
+
+Test the changeRootCluster API for shard controller (update the map from GID to cluster address)
+When a leader is changed, notify the shard controller and when whole cluster is deleted, send leave request to shard controller
