@@ -1,31 +1,22 @@
-curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"as0", "Value":"as0"}'
-curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"as5", "Value":"as5"}'
-curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"fs5", "Value":"fs5"}'
-curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"ks5", "Value":"ks5"}'
-
+Delete temp folder after each execution
 
 curl -L http://127.0.0.1:4444/join/%3A9019
 
-curl -L http://127.0.0.1:9000/fs5
-
-
-For main, in command line arguments, take GID:address for each cluster 
-Convert GID to int while storing them in angles
-For KeyValue, in command line arguments, take the group id so that when change in leader happens, we can notify shard controller
-
-Replace the cluster's absolute address with group IDs while maintaining angles
-Angles maintain the angle to GID map
-We need to store GID to cluster address map
-During join and leave, send the above map as well during post requests - end to end testing
-
-Test the changeRootCluster API for shard controller (update the map from GID to cluster address)
-When a leader is changed, notify the shard controller and when whole cluster is deleted, send leave request to shard controller
-
-
-
 curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"aa", "Value":"aa"}'
 curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"ab", "Value":"ab"}'
+curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"ddd", "Value":"ddd"}'
+curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"dde", "Value":"dde"}'
+
 curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"abc", "Value":"abc"}'
 curl -L http://127.0.0.1:4444/ -X PUT -d '{"Key":"abd", "Value":"abd"}'
 
 curl -L http://127.0.0.1:4444/join/200/9019 
+
+
+./KeyValue -state_dir=./TEMP/1 -raft :8080 -api :9000 -shrdctlraddr :4444 -group_id 100
+
+./KeyValue -state_dir=./TEMP/2 -raft :8081 -api :9010 -shrdctlraddr :4444 -group_id 100 -join :8080
+
+go run main.go :4444 100:9000
+
+

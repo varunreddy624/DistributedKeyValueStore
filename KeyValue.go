@@ -31,10 +31,12 @@ func main() {
 	join := flag.String("join", "", "join cluster address")
 	api = flag.String("api", "", "api server address")
 	state := flag.String("state_dir", "", "raft state directory (WAL, Snapshots)")
-	sc = flag.String("shrdctrlr address", "", "ip and port of shard controller")
-	gid = flag.String("group id", "", "group id to which current node belongs")
+	sc = flag.String("shrdctlraddr", "", "ip and port of shard controller")
+	gid = flag.String("group_id", "", "group id to which current node belongs")
 
 	flag.Parse()
+
+	fmt.Println(*addr, *join, *api, *state, *sc, *gid)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", http.HandlerFunc(save)).Methods("PUT", "POST")
@@ -207,23 +209,58 @@ func removeNode(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
 	defer cancel()
 
-	// flag := false
+	if node.Leader() != id{
+		// non leader delete, need not inform shard controller
+		if err := node.RemoveMember(ctx, id); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// leader delete, inform shard controller
 
-	// if node.Leader() == id && node.Whoami() == id{
-	// 	flag = true
-	// }
-
-	if err := node.RemoveMember(ctx, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		// first transfer leadership
+		flag := false
+		members := node.Members()
+		for _,member := range members{
+			if member.ID() != id && member.Type() != 1{
+				flag = true
+				err = node.TransferLeadership(ctx, member.ID())
+				if err != nil{
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return					
+				}
+				break
+			}
+		}	
+		shardcontrollerFullAddress := GetFullAddr(*sc)	
+		if flag {
+			// enough members exists
+			if err := node.RemoveMember(ctx, id); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			// send transferOwnership to shardcontroller
+			resp, err := http.Get(shardcontrollerFullAddress+"/changeClusterRoot/"+(*gid)+"/"+(*api)[1:])
+			if err != nil {
+				// Handle the error
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer resp.Body.Close()
+		}else{
+			// send leave to shardcontroller
+			resp, err := http.Get(shardcontrollerFullAddress+"/leave/"+(*gid))
+			if err != nil {
+				// Handle the error
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer resp.Body.Close()
+		}
 	}
 
-	// if flag{
-	// 	leaderId := node.Leader()
-	// 	// leader is being removed, and you are the leader then we should update the shard controller
-	// 	// regarding the new leader
-	// 	shrdCtrlFullAddress := GetFullAddr(*sc) 
-	// }
+	// fmt.Println(node.Leader())
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func save(w http.ResponseWriter, r *http.Request) {

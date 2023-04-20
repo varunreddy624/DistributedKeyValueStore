@@ -12,7 +12,7 @@ import (
 	"log"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	
+
 	// "time"
 	// "context"
 	// "ShardedKeyValueStore/KV"
@@ -87,7 +87,6 @@ func GetFromCluster(url string, key string) string {
     }
 }
 
-
 func GetClusterAddressFromHash(hash int) string{
 	for i := 0; i<360; i++{
 		currentAngle := (hash-i+360)%360
@@ -145,7 +144,7 @@ func save(w http.ResponseWriter, r *http.Request) {
 	}
 
 	replicaGroup := GetClusterAddressFromHash(hashingFunc(e.Key))
-	
+
 	PutToCluster(replicaGroup, e.Key, e.Value)
 
 	w.WriteHeader(http.StatusNoContent)
@@ -171,7 +170,6 @@ func join(w http.ResponseWriter, r *http.Request){
 
 	angleToGid[nodeAngle%360] = nodeAngle
 	gIDtoAddress[nodeAngle] = clusterAddr
-	
 
 	SendConfig(nearestCluster)
 
