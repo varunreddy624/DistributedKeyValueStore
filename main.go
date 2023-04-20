@@ -126,7 +126,7 @@ func main(){
 	router.HandleFunc("/join/{gid}/{clusterAddr}",http.HandlerFunc(join)).Methods("GET")
 	router.HandleFunc("/leave/{gid}",http.HandlerFunc(leave)).Methods("GET")
 
-	// router.HandleFunc("/changeClusterRoot/{oldNode}/{newNode}",http.HandlerFunc(changeClusterRoot)).Methods("GET")
+	router.HandleFunc("/changeClusterRoot/{gid}/{newAddress}",http.HandlerFunc(changeClusterRoot)).Methods("GET")
 
 	if err := http.ListenAndServe(port, router); err != nil {
 		log.Fatal(err)
@@ -193,24 +193,18 @@ func leave(w http.ResponseWriter, r *http.Request){
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// func changeClusterRoot(w http.ResponseWriter, r *http.Request){
-// 	fmt.Println("here")
-	
-// 	oldNode := mux.Vars(r)["oldNode"]
-// 	newNode := mux.Vars(r)["newNode"]
+func changeClusterRoot(w http.ResponseWriter, r *http.Request){
+	gid := mux.Vars(r)["gid"]
+	newAddress := mux.Vars(r)["newAddress"]
 
-// 	fmt.Println(oldNode,newNode)
+	nodeAngle,_ := strconv.Atoi(gid)
 
-// 	for index,elem := range angles{
-// 		if elem == oldNode{
-// 			angles[index] = newNode
-// 		}
-// 	}
+	fmt.Println(gIDtoAddress)
+	gIDtoAddress[nodeAngle] = newAddress
+	fmt.Println(gIDtoAddress)
 
-// 	fmt.Println(angles)
-
-// 	w.WriteHeader(http.StatusNoContent)
-// }
+	w.WriteHeader(http.StatusNoContent)
+}
 
 func hashingFunc(key string) int {
 	asciiStr := []rune(key)
