@@ -1,12 +1,15 @@
 package main
 
 import (
-	"bytes"
+	"os"
 	"fmt"
+	"strings"
+	"strconv"
+
+	"bytes"
 	"io/ioutil"
 	"net/http"
 	"log"
-	"os"
 	"encoding/json"
 	"github.com/gorilla/mux"
 	
@@ -20,9 +23,13 @@ type entry struct {
 	Value string
 }
 
+var angleToGid [360]int
+var gIDtoAddress = make(map[int]string)
+
 func SendConfig(url string){
 	jsonBody := map[string]interface{}{
-		"config":angles,
+		"angleToGid":angleToGid,
+		"gIDtoAddress":gIDtoAddress,
 	}
 	jsonStr,_ := json.Marshal(jsonBody)
 
@@ -80,14 +87,13 @@ func GetFromCluster(url string, key string) string {
     }
 }
 
-var angles [360]string
-
 
 func GetClusterAddressFromHash(hash int) string{
 	for i := 0; i<360; i++{
 		currentAngle := (hash-i+360)%360
-		if angles[currentAngle] != ""{
-			clusterAddress := "http://127.0.0.1"+angles[currentAngle]+"/"
+		if angleToGid[currentAngle] != -1{
+			clusterAddress := gIDtoAddress[angleToGid[currentAngle]]
+			clusterAddress = "http://127.0.0.1:"+clusterAddress+"/"
 			fmt.Println(hash, currentAngle)
 			return clusterAddress
 		}
@@ -97,22 +103,30 @@ func GetClusterAddressFromHash(hash int) string{
 
 func main(){
 
+	for i :=0; i<360; i++{
+		angleToGid[i] = -1
+	}
+
 	port := os.Args[1]
 
 	for _,i :=  range os.Args[2:]{
-		angle := hashingFunc(i)
-		angles[angle] = i
-		fmt.Println(i,angle)
+		gidAndPort := strings.Split(i,":")
+		gid := gidAndPort[0]
+		port := gidAndPort[1]
+		angle,_ := strconv.Atoi(gid)
+		angleToGid[angle%360] = angle
+		gIDtoAddress[angle] = port
 	}
+	// fmt.Println(angleToGid, gIDtoAddress)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", http.HandlerFunc(save)).Methods("PUT", "POST")
 	router.HandleFunc("/{key}", http.HandlerFunc(get)).Methods("GET")
 
-	router.HandleFunc("/join/{node}",http.HandlerFunc(join)).Methods("GET")
-	router.HandleFunc("/leave/{node}",http.HandlerFunc(leave)).Methods("GET")
+	router.HandleFunc("/join/{gid}/{clusterAddr}",http.HandlerFunc(join)).Methods("GET")
+	router.HandleFunc("/leave/{gid}",http.HandlerFunc(leave)).Methods("GET")
 
-	router.HandleFunc("/changeClusterRoot/{oldNode}/{newNode}",http.HandlerFunc(changeClusterRoot)).Methods("GET")
+	// router.HandleFunc("/changeClusterRoot/{oldNode}/{newNode}",http.HandlerFunc(changeClusterRoot)).Methods("GET")
 
 	if err := http.ListenAndServe(port, router); err != nil {
 		log.Fatal(err)
@@ -148,54 +162,55 @@ func get(w http.ResponseWriter, r *http.Request) {
 }
 
 func join(w http.ResponseWriter, r *http.Request){
-	node := mux.Vars(r)["node"]
-	nodeAngle := hashingFunc(node)
+	gid := mux.Vars(r)["gid"]
+	clusterAddr := mux.Vars(r)["clusterAddr"]
 
-	nearestCluster := GetClusterAddressFromHash(nodeAngle)
+	nodeAngle,_ := strconv.Atoi(gid)
 
-	angles[nodeAngle] = node
+	nearestCluster := GetClusterAddressFromHash(nodeAngle%360)
+
+	angleToGid[nodeAngle%360] = nodeAngle
+	gIDtoAddress[nodeAngle] = clusterAddr
 	
 
 	SendConfig(nearestCluster)
-
-	// fmt.Println(node,nodeAngle)
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func leave(w http.ResponseWriter, r *http.Request){
-	node := mux.Vars(r)["node"]
-	nodeAngle := hashingFunc(node)
+	gid := mux.Vars(r)["gid"]
 
-	nearestCluster := GetClusterAddressFromHash(nodeAngle)
+	nodeAngle,_ := strconv.Atoi(gid)
 
-	angles[nodeAngle] = ""
+	nearestCluster := GetClusterAddressFromHash(nodeAngle%360)
+
+	angleToGid[nodeAngle%360] = -1
+	delete(gIDtoAddress,nodeAngle)
 
 	SendConfig(nearestCluster)
 
-	fmt.Println(node,nodeAngle)
-
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func changeClusterRoot(w http.ResponseWriter, r *http.Request){
-	fmt.Println("here")
+// func changeClusterRoot(w http.ResponseWriter, r *http.Request){
+// 	fmt.Println("here")
 	
-	oldNode := mux.Vars(r)["oldNode"]
-	newNode := mux.Vars(r)["newNode"]
+// 	oldNode := mux.Vars(r)["oldNode"]
+// 	newNode := mux.Vars(r)["newNode"]
 
-	fmt.Println(oldNode,newNode)
+// 	fmt.Println(oldNode,newNode)
 
-	for index,elem := range angles{
-		if elem == oldNode{
-			angles[index] = newNode
-		}
-	}
+// 	for index,elem := range angles{
+// 		if elem == oldNode{
+// 			angles[index] = newNode
+// 		}
+// 	}
 
-	fmt.Println(angles)
+// 	fmt.Println(angles)
 
-	w.WriteHeader(http.StatusNoContent)
-}
+// 	w.WriteHeader(http.StatusNoContent)
+// }
 
 func hashingFunc(key string) int {
 	asciiStr := []rune(key)
@@ -205,5 +220,3 @@ func hashingFunc(key string) int {
 	}
 	return summnation%360
 }
-
-// TODO: cluster master node failure
